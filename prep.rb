@@ -71,11 +71,11 @@ end
 #print list of users and their accounts
 print_users(userlist, servicelist)
 
-#project details
+#PROJECT DETAILS
 puts "Project name:"
 name = gets.chomp
 puts "Repo owner:"
-master = gets.chomp #Currently username, should select from user list
+master = gets.chomp #Currently username, should select from user list?
 #add github repo
 url = "https://api.github.com/repos/#{master}/#{name}"
 begin
@@ -88,4 +88,51 @@ begin
   x=JSON.parse(response)["name"]
 rescue
   puts "Not found!"
+end
+#GETTING GITHUB EVENTS FOR THE PROJECT
+url = "https://api.github.com/repos/#{master}/#{name}/events"
+begin
+  uri = URI(url)
+  response = Net::HTTP.get(uri)
+  data = JSON.parse(response)
+rescue
+  puts "Connection to GitHub failed."
+end
+begin
+  data.each do |entry|
+    print "#{entry["created_at"]}: #{entry["actor"]["login"]} - "
+    info = entry["payload"]
+    case entry["type"]
+    when "IssuesEvent"
+      puts "Issue ##{info["issue"]["number"]} #{info["action"]}: #{info["issue"]["title"]}"
+    when "IssueCommentEvent"
+      puts "Comment on issue ##{info["issue"]["number"]} #{info["action"]}: #{info["issue"]["body"]}"
+    when "PushEvent"
+      info["commits"].each do |commit|
+        puts "Commit pushed: #{commit["message"]}"
+      end
+    when "ForkEvent"
+      puts "Forked by #{info["forkee"]["owner"]["login"]} at #{info["forkee"]["full_name"]}"
+    when "CreateEvent"
+      print "#{info["ref_type"].capitalize} created"
+      case info["ref_type"]
+      when "repository"
+        puts "."
+      when "branch"
+        puts ": #{info["ref"]}."
+      end
+    when "DeleteEvent"
+      print "#{info["ref_type"].capitalize} deleted"
+      case info["ref_type"]
+      when "repository"
+        puts "."
+      when "branch"
+        puts ": #{info["ref"]}."
+      end
+    when "PullRequestEvent"
+      puts "Pull request ##{info["number"]} #{info["action"]}: #{info["pull_request"]["title"]}"
+    end
+  end
+#rescue
+#  puts "Not found!"
 end
