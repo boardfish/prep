@@ -1,6 +1,7 @@
 require 'net/http'
 require 'json'
 require 'octokit'
+require 'twitter'
 
 userlist=Array.new
 github=Hash.new
@@ -89,6 +90,7 @@ begin
 rescue
   puts "Not found!"
 end
+
 #GETTING GITHUB EVENTS FOR THE PROJECT
 url = "https://api.github.com/repos/#{master}/#{name}/events"
 begin
@@ -135,4 +137,33 @@ begin
   end
 #rescue
 #  puts "Not found!"
+end
+
+client = Twitter::REST::Client.new do |config|
+  config.consumer_key        = "rdf1smTEPZo0vSsbe6CpwBJtf"
+  config.consumer_secret     = "pHyyqp2LVdhIRdCtpxpburB5sD9oCyzAkUpEXNuTFSiAtx0KlC"
+  config.access_token        = "4245171201-L2Re7mSil8Tzg2JhS7SbKxdMCjDHwrii8YaNATA"
+  config.access_token_secret = "pjdqx3pvSGIel9ZS9xJPVTPN2Cr8xw4VSvH2CdBtSKTcr"
+end
+
+def collect_with_max_id(collection=[], max_id=nil, &block)
+  response = block.call(max_id)
+  collection += response
+  response.empty? ? collection.flatten : collect_with_max_id(collection, response.last.id - 1, &block)
+end
+
+def client.get_all_tweets(user)
+  collect_with_max_id do |max_id|
+    options = {count: 50, include_rts: true}
+    options[:max_id] = max_id unless max_id.nil?
+    user_timeline(user, options)
+  end
+end
+
+recent_tweets = client.get_all_tweets("Undying_Fish")
+
+recent_tweets.each do |tweet|
+    print tweet.created_at
+    print ": "
+    puts tweet.full_text
 end
