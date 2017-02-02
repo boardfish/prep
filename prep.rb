@@ -2,12 +2,14 @@ require 'net/http'
 require 'json'
 require 'octokit'
 require 'twitter'
+require 'date'
 
 userlist=Array.new
 github=Hash.new
 twitter=Hash.new
 servicelist={"GitHub" => github, "Twitter" => twitter}
 projectdetails={}
+eventList=[]
 def add_name(userlist)
   print "User's Full Name: "
   name = gets.chomp
@@ -102,48 +104,53 @@ rescue
 end
 begin
   data.each do |entry|
-    print "#{entry["created_at"]}: #{entry["actor"]["login"]} - "
+    eventTime = Time.parse(entry["created_at"])
+    eventLogin = entry["actor"]["login"]
     info = entry["payload"]
+    eventText = ""
     case entry["type"]
     when "IssuesEvent"
-      puts "Issue ##{info["issue"]["number"]} #{info["action"]}: #{info["issue"]["title"]}"
+      eventText = "Issue ##{info["issue"]["number"]} #{info["action"]}: #{info["issue"]["title"]}"
     when "IssueCommentEvent"
-      puts "Comment on issue ##{info["issue"]["number"]} #{info["action"]}: #{info["issue"]["body"]}"
+      eventText = puts "Comment on issue ##{info["issue"]["number"]} #{info["action"]}: #{info["issue"]["body"]}"
     when "PushEvent"
       info["commits"].each do |commit|
-        puts "Commit pushed: #{commit["message"]}"
+        eventText+= "Commit pushed: #{commit["message"]}\n"
+        #SOMETHING'S WRONG HERE
       end
     when "ForkEvent"
-      puts "Forked by #{info["forkee"]["owner"]["login"]} at #{info["forkee"]["full_name"]}"
+      eventText = "Forked by #{info["forkee"]["owner"]["login"]} at #{info["forkee"]["full_name"]}"
     when "CreateEvent"
-      print "#{info["ref_type"].capitalize} created"
+      eventText = "#{info["ref_type"].capitalize} created"
       case info["ref_type"]
       when "repository"
-        puts "."
+        eventText += "."
       when "branch"
-        puts ": #{info["ref"]}."
+        eventText += ": #{info["ref"]}."
       end
     when "DeleteEvent"
-      print "#{info["ref_type"].capitalize} deleted"
+      eventText =  "#{info["ref_type"].capitalize} deleted"
       case info["ref_type"]
       when "repository"
-        puts "."
+        eventText +=  "."
       when "branch"
-        puts ": #{info["ref"]}."
+        eventText += ": #{info["ref"]}."
       end
     when "PullRequestEvent"
-      puts "Pull request ##{info["number"]} #{info["action"]}: #{info["pull_request"]["title"]}"
+      eventText = "Pull request ##{info["number"]} #{info["action"]}: #{info["pull_request"]["title"]}"
     end
+    event = {:time => eventTime, :login => eventLogin, :text => eventText}
+    eventList.push(event)
   end
 #rescue
 #  puts "Not found!"
 end
 
 client = Twitter::REST::Client.new do |config|
-  config.consumer_key        = "rdf1smTEPZo0vSsbe6CpwBJtf"
-  config.consumer_secret     = "pHyyqp2LVdhIRdCtpxpburB5sD9oCyzAkUpEXNuTFSiAtx0KlC"
-  config.access_token        = "4245171201-L2Re7mSil8Tzg2JhS7SbKxdMCjDHwrii8YaNATA"
-  config.access_token_secret = "pjdqx3pvSGIel9ZS9xJPVTPN2Cr8xw4VSvH2CdBtSKTcr"
+  config.consumer_key        = ""
+  config.consumer_secret     = ""
+  config.access_token        = ""
+  config.access_token_secret = ""
 end
 
 def collect_with_max_id(collection=[], max_id=nil, &block)
@@ -163,7 +170,16 @@ end
 recent_tweets = client.get_all_tweets("Undying_Fish")
 
 recent_tweets.each do |tweet|
-    print tweet.created_at
-    print ": "
-    puts tweet.full_text
+  eventLogin = "Undying_Fish"
+  eventTime = tweet.created_at
+  eventText = tweet.full_text
+  event = {:time => eventTime, :login => eventLogin, :text => eventText}
+  eventList.push(event)
+end
+
+eventlistSorted = eventList.sort_by { |k| k[:time]}
+eventListSorted.each do |event|
+  event.each do |key, value|
+    puts "#{key}: #{value} (#{value.class})"
+  end
 end
