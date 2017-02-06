@@ -4,13 +4,6 @@ require 'octokit'
 require 'twitter'
 require 'date'
 
-userlist = []
-github = {}
-twitter = {}
-servicelist = { 'GitHub' => github, 'Twitter' => twitter }
-projectdetails = {}
-eventList = []
-
 def add_name(_userlist)
     print "User's Full Name: "
     name = gets.chomp
@@ -87,7 +80,7 @@ def verify_git_repository(master, name)
 end
 
 # GETTING GITHUB EVENTS FOR THE PROJECT
-def get_project_activity(master, name)
+def get_project_activity(master, name, eventList)
     url = "https://api.github.com/repos/#{master}/#{name}/events"
     begin
         uri = URI(url)
@@ -142,7 +135,6 @@ def get_project_activity(master, name)
 end
 
 def parse_all_tweets(user, eventList)
-
     def collect_with_max_id(collection = [], max_id = nil, &block)
         response = yield(max_id)
         collection += response
@@ -150,10 +142,10 @@ def parse_all_tweets(user, eventList)
     end
 
     client = Twitter::REST::Client.new do |config|
-        config.consumer_key        = ''
-        config.consumer_secret     = ''
-        config.access_token        = ''
-        config.access_token_secret = ''
+        config.consumer_key        = 'rdf1smTEPZo0vSsbe6CpwBJtf'
+        config.consumer_secret     = 'pHyyqp2LVdhIRdCtpxpburB5sD9oCyzAkUpEXNuTFSiAtx0KlC'
+        config.access_token        = '4245171201-L2Re7mSil8Tzg2JhS7SbKxdMCjDHwrii8YaNATA'
+        config.access_token_secret = 'pjdqx3pvSGIel9ZS9xJPVTPN2Cr8xw4VSvH2CdBtSKTcr'
     end
 
     def client.get_all_tweets(user)
@@ -166,7 +158,7 @@ def parse_all_tweets(user, eventList)
 
     recent_tweets = client.get_all_tweets(user)
 
-    recent_tweets.name.each do |tweet|
+    recent_tweets.each do |tweet|
         eventLogin = user
         eventTime = tweet.created_at
         eventText = tweet.full_text
@@ -193,26 +185,49 @@ def project_config
         master = gets.chomp # Currently username, should select from user list?
         verified = verify_git_repository(master, name)
     end
-    return master, name
+    [master, name]
 end
+
+def hackathon_config
+    puts 'Hackathon title:'
+    name = gets.chomp
+    puts 'Date and time of start:'
+    starttime = Time.parse(gets.chomp)
+    puts 'Date and time of end:'
+    endtime = Time.parse(gets.chomp)
+    [name, starttime, endtime]
+end
+
+userlist = []
+github = {}
+twitter = {}
+servicelist = { 'GitHub' => github, 'Twitter' => twitter }
+projectdetails = {}
+eventList = []
 
 team_config(userlist, servicelist)
 master, name = project_config
-
-
-servicelist.each do |name, id|
-  puts "----------------\NUSERNAME #{id}\n-------------------------"
-  case id
-  when "Twitter"
-    parse_all_tweets(user, eventList)
-  end
+servicelist.each do |service, name|
+    name.each do |name, username|
+        case service
+        when 'Twitter'
+            parse_all_tweets(username, eventList)
+            # when "GitHub"
+            # method_for_individual_user_activity?
+            # This section is a case so that as new APIs are added it can be expanded!
+        end
+    end
 end
-
-get_project_activity(master, name)
+get_project_activity(master, name, eventList)
+hackathonName, starttime, endtime = hackathon_config
 
 eventlistSorted = eventList.sort_by { |k| k[:time] } # Sort events by time
 eventlistSorted.each do |event|
+    eventWithinTimeframe = false
     event.each do |key, value|
-        puts "#{key}: #{value}"
+        if key == :time && value > starttime && value < endtime
+            eventWithinTimeframe = true
+        end
+        puts "#{key}: #{value}" if eventWithinTimeframe
     end
 end
