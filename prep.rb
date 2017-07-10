@@ -29,35 +29,19 @@ def verify_twitter(id)
         puts 'Connection to Twitter failed.'
     end
     x = JSON.parse(response)['reason']
-    if x == 'taken'
-        puts 'Account exists.'
-        return true
-    else
-        puts 'Not found!'
-        return false
-    end
+    return x == 'taken'
 end
 
-def add_ID(name, servicename, servicelist)
+def add_ID(name, servicename )
     print "User's #{servicename} ID: "
     id = gets.chomp
     return if id == 'exit'
-    case servicename
-    when 'GitHub'
-        idfound = verify_git(id)
-    when 'Twitter'
-        idfound = verify_twitter(id)
-    end
+    verificationmethods = {
+      "GitHub" => method(:verify_git),
+      "Twitter" => method(:verify_twitter)
+    }
+    idfound = verificationmethods[service].call(id)
     servicelist[name] = id if idfound
-end
-
-def print_users(userlist, servicelist)
-    userlist.each do |user|
-        puts user.to_s
-        servicelist.each do |servicename, profiles|
-            puts "#{servicename}: #{profiles[user]}"
-        end
-    end
 end
 
 def verify_git_repository(master, name)
@@ -142,10 +126,10 @@ def parse_all_tweets(user, eventList)
     end
 
     client = Twitter::REST::Client.new do |config|
-        config.consumer_key        = 'rdf1smTEPZo0vSsbe6CpwBJtf'
-        config.consumer_secret     = 'pHyyqp2LVdhIRdCtpxpburB5sD9oCyzAkUpEXNuTFSiAtx0KlC'
-        config.access_token        = '4245171201-L2Re7mSil8Tzg2JhS7SbKxdMCjDHwrii8YaNATA'
-        config.access_token_secret = 'pjdqx3pvSGIel9ZS9xJPVTPN2Cr8xw4VSvH2CdBtSKTcr'
+        config.consumer_key        = 'UcwZpiYDRCOksbZd9zSwMjp67'
+        config.consumer_secret     = '2HM7XKXO8UuvfX3ySwjYN92DbzjXqufJKhuGrYaa4PB6XpD5SH'
+        config.access_token        = '864230949894205444-tv4xG08aElBlNlwb1KOprAEKFFWCzFE'
+        config.access_token_secret = 'wwEJIUWqaZFlgU2ZUJ70LF7RGGSDOsgnlcdVoCvJdADKO'
     end
 
     def client.get_all_tweets(user)
@@ -204,6 +188,8 @@ twitter = {}
 servicelist = { 'GitHub' => github, 'Twitter' => twitter }
 projectdetails = {}
 eventList = []
+verbose = ARGV.include? "-v"
+latex = ARGV.include? "-l"
 
 team_config(userlist, servicelist)
 master, name = project_config
@@ -228,6 +214,10 @@ eventlistSorted.each do |event|
         if key == :time && value > starttime && value < endtime
             eventWithinTimeframe = true
         end
-        puts "#{key}: #{value}" if eventWithinTimeframe
+	if eventWithinTimeFrame
+	    puts "#{key}: #{value}" if verbose
+	    # write to latex file if latex
+	    # write to HTML template if HTML
+	end
     end
 end
