@@ -4,24 +4,11 @@ require 'octokit'
 require 'twitter'
 require 'date'
 
-# Globals
-@services = {
-    'GitHub' => {
-      "verificationMethod" => method(:verify_git),
-    },
-    'Twitter' => {
-      "verificationMethod" => method(:verify_twitter),
-    }
-}
-
-
 def verify_git(id)
   user = Octokit.user id
 rescue
-  puts 'Not found!'
   return false
 else
-  puts 'Account exists.'
   return true
 end
 
@@ -37,21 +24,14 @@ def verify_twitter(id)
   x == 'taken'
 end
 
-def add_ID(servicename)
-  print "User's #{servicename} ID: "
-  id = gets.chomp
-  idfound = verificationmethods[service].call(id)
-  if idfound
-    return id
-  else
-    return false
-  end
+def add_ID(service, id)
+  idfound = @services[service]['verificationMethod'].call(id)
+  idfound
 end
 
 def verify_git_repository(user, project)
-  url = "https://api.github.com/repos/#{user}/#{project}"
+  uri = URI("https://api.github.com/repos/#{user}/#{project}")
   begin
-    uri = URI(url)
     response = Net::HTTP.get(uri)
   rescue
     puts 'Connection to GitHub failed.'
@@ -66,9 +46,9 @@ def verify_git_repository(user, project)
   end
 end
 
-def get_project_activity(user, project)
+def get_user_activity(user)
   eventList = []
-  url = "https://api.github.com/repos/#{user}/#{project}/events"
+  url = "https://api.github.com/users/#{user}/events"
   begin
     uri = URI(url)
     response = Net::HTTP.get(uri)
@@ -120,7 +100,8 @@ def get_project_activity(user, project)
   eventList
 end
 
-def parse_all_tweets(user, eventList)
+def parse_all_tweets(user)
+  eventList = []
   def collect_with_max_id(collection = [], max_id = nil, &block)
     response = yield(max_id)
     collection += response
@@ -151,18 +132,44 @@ def parse_all_tweets(user, eventList)
     event = { time: eventTime, login: eventLogin, text: eventText }
     eventList.push(event)
   end
+  eventList
 end
+
+# Globals
+@services = {
+  'GitHub' => {
+    'verificationMethod' => method(:verify_git),
+    'getMethod' => method(:get_user_activity)
+  },
+  'Twitter' => {
+    'verificationMethod' => method(:verify_twitter),
+    'getMethod' => method(:parse_all_tweets)
+  }
+}
 
 def team_config
   team = {}
-  while username != 'exit'
-    puts
-    id = add_ID("GitHub")
+  username = ''
+  while username != ':q'
+    username = gets.chomp
+    id = add_ID('GitHub', username)
     next if id == false
-    team[id] = {}
-    team[id]["GitHub"] == id
-    team[id]["Twitter"] == add_ID("Twitter")
+    team[username] = { 'GitHub' => username }
+    # if :q, next. Otherwise, verify and add
+    twitterVerified = false
+    until twitterVerified
+      print "User's Twitter username: "
+      twitterHandle = gets.chomp
+      if twitterHandle == ':q'
+        team[username]['Twitter'] == false
+        twitterVerified = true
+        next
+      else
+        team[username]['Twitter'] == twitterHandle if add_ID('Twitter', twitterHandle)
+      end
+    end
   end
+  team
 end
 
 # Verifies github project exists
@@ -182,6 +189,7 @@ end
 def time_constraint_config
   puts 'Date and time of start:'
   starttime = Time.parse(gets.chomp)
+  puts starttime
   puts 'Date and time of end:'
   endtime = Time.parse(gets.chomp)
   [starttime, endtime]
@@ -191,31 +199,30 @@ end
 verbose = ARGV.include? '-v'
 latex = ARGV.include? '-l'
 
-team_config(userlist, servicelist)
+team = team_config
 master, name = project_config
-servicelist.each do |service, name|
-  name.each do |_name, username|
-    case service
-    when 'Twitter'
-      parse_all_tweets(username, eventList)
-      # when "GitHub"
-      # method_for_individual_user_activity?
-      # This section is a case so that as new APIs are added it can be expanded!
-    end
+eventList = []
+puts
+print team
+@services.each do |service, methods|
+  team.each do |user, _usernames|
+    next if team[user][service].nil? || team[user][service].empty?
+    eventList += methods['getMethod'].call(team[user][service])
+    puts
+    print eventList
   end
 end
-get_project_activity(master, name, eventList)
 starttime, endtime = time_constraint_config
 
-eventlistSorted = eventList.sort_by { |k| k[:time] } # Sort events by time
+eventlistSorted = eventList#.sort_by { |k| k["time"] } # Sort events by time
 eventlistSorted.each do |event|
   eventWithinTimeframe = false
   event.each do |key, value|
     if key == :time && value > starttime && value < endtime
       eventWithinTimeframe = true
     end
-    next unless eventWithinTimeFrame
-    puts "#{key}: #{value}" if verbose
+    next unless eventWithinTimeframe
+    puts "#{key}: #{value}" #if verbose
     # write to latex file if latex
     # write to HTML template if HTML
   end
