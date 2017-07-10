@@ -151,6 +151,7 @@ def team_config
   team = {}
   username = ''
   while username != ':q'
+    print "User's GitHub username: "
     username = gets.chomp
     id = add_ID('GitHub', username)
     next if id == false
@@ -158,14 +159,16 @@ def team_config
     # if :q, next. Otherwise, verify and add
     twitterVerified = false
     until twitterVerified
-      print "User's Twitter username: "
+      print "User's Twitter handle: "
       twitterHandle = gets.chomp
       if twitterHandle == ':q'
         team[username]['Twitter'] == false
         twitterVerified = true
         next
       else
+        puts twitterHandle
         team[username]['Twitter'] == twitterHandle if add_ID('Twitter', twitterHandle)
+        twitterVerified = true
       end
     end
   end
@@ -189,7 +192,6 @@ end
 def time_constraint_config
   puts 'Date and time of start:'
   starttime = Time.parse(gets.chomp)
-  puts starttime
   puts 'Date and time of end:'
   endtime = Time.parse(gets.chomp)
   [starttime, endtime]
@@ -208,13 +210,11 @@ print team
   team.each do |user, _usernames|
     next if team[user][service].nil? || team[user][service].empty?
     eventList += methods['getMethod'].call(team[user][service])
-    puts
-    print eventList
   end
 end
 starttime, endtime = time_constraint_config
 
-eventlistSorted = eventList#.sort_by { |k| k["time"] } # Sort events by time
+eventlistSorted = eventList.sort_by { |k| k["time"] } # Sort events by time
 eventlistSorted.each do |event|
   eventWithinTimeframe = false
   event.each do |key, value|
@@ -222,7 +222,7 @@ eventlistSorted.each do |event|
       eventWithinTimeframe = true
     end
     next unless eventWithinTimeframe
-    puts "#{key}: #{value}" #if verbose
+    puts "#{key}: #{value}" # if verbose
     # write to latex file if latex
     # write to HTML template if HTML
   end
